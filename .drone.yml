@@ -20,28 +20,26 @@ steps:
         <{{ build.link }}|Visit build page ➡️>
       webhook:
         from_secret: SLACK_WEBHOOK_URL
-# ---
-# kind: pipeline
-# type: docker
-# name: test
+---
+kind: pipeline
+type: docker
+name: test
 
-# trigger:
-#   event: [push, pull_request]
+trigger:
+  event: [push, pull_request]
 
-# steps:
-#   - name: test
-#     image: ruby:2.7.2
-#     commands:
-#       - gem install bundler -v 2.1.4
-#       - bundle install
-#       - bundle exec rspec -fd
+steps:
+  - name: test
+    image: ghcr.io/gordonpn/ror-hello-world
+    commands:
+      - bundle exec rspec -fd
 ---
 kind: pipeline
 type: docker
 name: docker image
 
-# depends_on:
-#   - test
+depends_on:
+  - test
 
 platform:
   os: linux
@@ -71,30 +69,30 @@ volumes:
   - name: dockersock
     host:
       path: /var/run/docker.sock
-# ---
-# kind: pipeline
-# type: docker
-# name: deploy
+---
+kind: pipeline
+type: docker
+name: deploy
 
-# depends_on:
-#   - test
-#   - docker image
+depends_on:
+  - test
+  - docker image
 
-# trigger:
-#   event: [push, pull_request]
+trigger:
+  event: [push, pull_request]
 
-# steps:
-#   - name: deploy production
-#     image: docker/compose:1.29.1
-#     environment:
-#       RAILS_ENV: production
-#     volumes:
-#       - name: dockersock
-#         path: /var/run/docker.sock
-#     commands:
-#       - /drone/src/.devops/deploy_prod.sh
+steps:
+  - name: deploy production
+    image: docker/compose:1.29.1
+    environment:
+      RAILS_ENV: production
+    volumes:
+      - name: dockersock
+        path: /var/run/docker.sock
+    commands:
+      - /drone/src/.devops/deploy_prod.sh
 
-# volumes:
-#   - name: dockersock
-#     host:
-#       path: /var/run/docker.sock
+volumes:
+  - name: dockersock
+    host:
+      path: /var/run/docker.sock

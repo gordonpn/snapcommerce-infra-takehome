@@ -1,0 +1,50 @@
+version: "3.8"
+services:
+  ror-hello-world:
+    container_name: ror-hello-world
+    image: ghcr.io/gordonpn/ror-hello-world:latest
+    expose:
+      - 5000
+    networks:
+      - ror-hello-world-network
+      - traefik-public
+    environment:
+      - RAILS_ENV
+    healthcheck:
+      test: curl --fail -s http://localhost:5000/ || exit 1
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 1m30s
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      labels:
+        - "traefik.enable=true"
+        - "traefik.constraint-label=traefik-public"
+        - "traefik.http.services.ror-hello-world.loadbalancer.server.port=5000"
+        - "traefik.http.routers.ror-hello-world.entrypoints=websecure"
+        - "traefik.http.routers.ror-hello-world.service=ror-hello-world@docker"
+        - "traefik.http.routers.ror-hello-world.middlewares=secured_headers@file"
+        - "traefik.http.routers.ror-hello-world.tls.certresolver=leresolver"
+        - "traefik.http.routers.ror-hello-world.rule=Host(`snapcommerce.gordon-pn.com`)"
+        - "traefik.docker.network=traefik-public"
+
+networks:
+  ror-hello-world-network:
+    driver: overlay
+  traefik-public:
+    external: true
+    driver: overlay
