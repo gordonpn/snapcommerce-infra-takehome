@@ -1,67 +1,27 @@
 # Snapcommerce Infra Co-op Takehome Challenge
 
-## Description
+[![Build Status](https://drone.gordon-pn.com/api/badges/gordonpn/snapcommerce-infra-takehome/status.svg)](https://drone.gordon-pn.com/gordonpn/snapcommerce-infra-takehome)
 
-In this challenge, you will take a legacy hello-world HTTP server application, containerize it using Docker, and deploy it to the cloud.
+## Submission details
 
-You do not need any previous experience with Ruby on Rails to complete this challenge, and no modifications or additions to the application code are necessary. You should be able to complete the challenge using a combination of the legacy application README below, previous experience, and online research. There is no time limit, but you should be able to complete it in less than 3 hours.
+Submitted by Gordon Pham-Nguyen.
 
-You may use any technologies or platforms you want, but you must containerize the application yourself and include a Dockerfile. If you incur any expenses during this challenge, we will reimburse you up to CAD$10. Send a receipt / screenshot of the expenses incurred to your recruiter 3 days after the stated due date.
+URL of the hosted application: <https://snapcommerce.gordon-pn.com>.
 
-## Requirements
+### Technologies & platforms used
 
-1. The application is containerized via a Dockerfile placed in the root of the project. If someone were to run `docker build .` it would complete successfully.
-1. A running version of the built docker image is accessible over HTTP over the public internet at an address provided by you at the root path. Eg. `http://some-domain.somewhere.com/` or `http://<someipv4address>/`
-1. The message displayed is "Hello world from production!". The last word in the message is controlled via the environment variable RAILS_ENV. Do not hardcode the value "production" into the application code or the built Docker image. Set the environment variable correctly at container launch time depending on your chosen platform / technology stack.
+[Drone CI](https://www.drone.io/) is used as the CI/CD platform. Each push to the repository triggers a test then a build & publish of the Docker image, finally deploying using Docker Swarm. The CI pipeline does not continue if the tests aren't successful. The `RAILS_ENV` is set in the `deploy` pipeline as an environment variable. These configurations can be found in `.drone.yml`.
 
-## Bonus objectives
+[Docker Swarm](https://docs.docker.com/engine/swarm/) is the orchestrator of choice. It helps with deploying applications to production.
 
-Presented in decreasing order of value. Do not implement all of these, one or two (or zero) is just fine.
+[Traefik](https://traefik.io/traefik/) is used as the entry proxy and provides SSL as well as other features.
 
-- CI/CD the application is automatically tested and deployed when you push your code to your private git repository
-- IaC (Infrastructure as Code): as much configuration as possible is stored in the git repo in text files, except for the value of RAILS_ENV
-- Zero downtime upgrades: the application is available all throughout the deployment process
-- Scalable horizontally and vertically: your deployment can handle arbitrary levels of traffic simply by adjusting configuration and spending more money. Assume for the purposes of this objective that the message is not static (no caches in front of the application are allowed)
-- SSL configured correctly, no SSL warnings when accessing the webpage over SSL and a padlock sign is displayed in Chrome
-- Local docker development: docker-compose.yaml file that allows developers to develop locally in a container
-- Some other feature/improvement over the basic requirements that you'd like to highlight
+[Docker Compose](https://docs.docker.com/compose/) used for local development. These configurations can be found in the `docker-compose.prod.yml`.
 
-## Submission details and short-form questions
+### Bonus objectives
 
-Submit your application to us by email as a g-zipped tarball (.tar.gz) of the repository root including the .git folder. **Do not submit a pull request or otherwise make a public submission or expose your code to the public**.
-
-**Note: GMail does not allow direct attachments of compressed archives containing .js files. Please follow these instructions to submit your assignment via Google Drive link instead:**
-
-https://support.google.com/mail/answer/6590?hl=en#zippy=%2Cmessages-that-have-attachments
-
-You can also send us a Dropbox link, etc.
-
-Your final submission should be committed to the master branch, without erasing or changing the existing commit history.
-
-The application should be available at the URL you provided for 3 days past the stated due date.
-
-Answer these questions in the README of your submission
-
-1. What is the URL of the hosted application?
-
-1. Briefly describe the technologies/platforms used (besides Docker and RoR). Describe where in the git repo these technologies/platforms are configured. If there are technologies/platforms configured manually in a web GUI or similar, include screenshots of all of the configuration.
-
-1. Did you achieve any of the bonus objectives? Which ones and how? Optionally, for any bonus objectives that were not completed, describe in 1-3 sentences how you would complete the objective given more time or money.
-
-# Legacy application README
-
-## Setup / prerequisites
-
-Requires MRI Ruby v2.7.2
-
-Requires bundler 2.1.4: `gem install bundler -v 2.1.4`
- 
-To install library dependencies: `bundle install`
-
-## Running the test suite
-
-To run the test suite: `bundle exec rspec -fd`
-
-## Running the server
-
-To run the http server bound to all interfaces and listening to port 5000: `bundle exec rails server -b 0.0.0.0 -p 5000`
+- The application is automatically tested and deployed when code is pushed. In the scope of this take-home, any code pushed will trigger the test(s) and image build and deploy if successful. In reality, commit hashes would be used to identify the images and only deploy to production after it passes staging environment. These configurations can be found in `.drone.yml`.
+- Zero downtime upgrades are achieved through orchestration with Docker Swarm. Docker Swarm provides rolling updates/blue-green deployment of containers, if they have changed. These configurations can be found in the `docker-compose.prod.yml` file under the `deploy` key.
+- The application can be scaled out (horizontally) by increasing the number of replicas of the service. With other orchestrators, this can be done automatically but with Docker Swarm it must be done manually using `docker service scale <SERVICE-ID>=<NUMBER-OF-TASKS>`. The Docker Swarm routing mesh acts as a load balancer.
+- SSL is achieved through Traefik and the configuration is documented [here](https://github.com/gordonpn/server-services-configs/tree/master/traefik) and in `docker-compose.prod.yml` under the `labels` key. Traefik stands in front of the application and all traffic must pass through Traefik before reaching any other service.
+- Local Docker development is available through the configurations defined in `docker-compose.yml`. The project directory is mounted into the container to allow developers to modify the code directly in the container and see the changes at <http://127.0.0.1:5000>.

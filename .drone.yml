@@ -1,0 +1,100 @@
+---
+kind: pipeline
+type: docker
+name: pre-notification
+
+trigger:
+  event: [push, pull_request]
+
+steps:
+  - name: slack before
+    image: plugins/slack
+    failure: ignore
+    settings:
+      channel: drone-ci
+      template: >
+        {{ uppercasefirst build.event }} on branch {{ build.branch }} from repo {{repo.name}}
+
+        Build #{{build.number}} started
+
+        <{{ build.link }}|Visit build page ➡️>
+      webhook:
+        from_secret: SLACK_WEBHOOK_URL
+# ---
+# kind: pipeline
+# type: docker
+# name: test
+
+# trigger:
+#   event: [push, pull_request]
+
+# steps:
+#   - name: test
+#     image: ruby:2.7.2
+#     commands:
+#       - gem install bundler -v 2.1.4
+#       - bundle install
+#       - bundle exec rspec -fd
+---
+kind: pipeline
+type: docker
+name: docker image
+
+# depends_on:
+#   - test
+
+platform:
+  os: linux
+  arch: amd64
+
+trigger:
+  event: [push, pull_request]
+
+steps:
+  - name: build and publish
+    image: gordonpn/docker-buildx-drone
+    volumes:
+      - name: dockersock
+        path: /var/run/docker.sock
+    environment:
+      CR_PAT:
+        from_secret: CR_PAT
+    commands:
+      - echo "$CR_PAT" | docker login ghcr.io -u gordonpn --password-stdin
+      - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      - docker buildx rm builder || true
+      - docker buildx create --name builder --driver docker-container --use
+      - docker buildx inspect --bootstrap
+      - docker buildx build -t ghcr.io/gordonpn/ror-hello-world:latest --platform linux/amd64,linux/arm64 --push .
+
+volumes:
+  - name: dockersock
+    host:
+      path: /var/run/docker.sock
+# ---
+# kind: pipeline
+# type: docker
+# name: deploy
+
+# depends_on:
+#   - test
+#   - docker image
+
+# trigger:
+#   event: [push, pull_request]
+
+# steps:
+#   - name: deploy production
+#     image: docker/compose:1.29.1
+#     environment:
+#       RAILS_ENV: production
+#     volumes:
+#       - name: dockersock
+#         path: /var/run/docker.sock
+#     commands:
+#       - /drone/src/.devops/deploy_prod.sh
+
+# volumes:
+#   - name: dockersock
+#     host:
+#       path: /var/run/docker.sock
